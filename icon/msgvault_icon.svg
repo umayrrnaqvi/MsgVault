@@ -1,0 +1,54 @@
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <!-- Background rounded square -->
+  <rect x="0" y="0" width="512" height="512" rx="100" fill="#1565C0"/>
+
+  <defs>
+    <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.12"/>
+      <stop offset="100%" stop-color="#000000" stop-opacity="0.08"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="512" height="512" rx="100" fill="url(#sheen)"/>
+
+  <!-- Shield shape -->
+  <path d="M256 80
+           L400 128
+           C406 130 410 137 410 144
+           L410 260
+           C410 355 345 420 256 455
+           C167 420 102 355 102 260
+           L102 144
+           C102 137 106 130 112 128
+           Z"
+        fill="#0D47A1" stroke="#90CAF9" stroke-width="3"/>
+
+  <!-- Inner shield -->
+  <path d="M256 108
+           L380 148
+           C384 150 386 154 386 158
+           L386 255
+           C386 335 330 390 256 420
+           C182 390 126 335 126 255
+           L126 158
+           C126 154 128 150 132 148
+           Z"
+        fill="#1565C0"/>
+
+  <!-- Lock icon -->
+  <circle cx="256" cy="175" r="14" fill="#90CAF9"/>
+  <rect x="250" y="175" width="12" height="16" rx="2" fill="#90CAF9"/>
+  <circle cx="256" cy="175" r="6" fill="#1565C0"/>
+  <rect x="253" y="175" width="6" height="10" rx="1" fill="#1565C0"/>
+
+  <!-- Chat bubble -->
+  <rect x="200" y="210" width="112" height="80" rx="18" fill="#E3F2FD"/>
+  <path d="M235 290 L222 312 L252 290" fill="#E3F2FD"/>
+
+  <!-- Message lines -->
+  <line x1="222" y1="237" x2="290" y2="237" stroke="#1565C0" stroke-width="5" stroke-linecap="round"/>
+  <line x1="222" y1="255" x2="278" y2="255" stroke="#1565C0" stroke-width="5" stroke-linecap="round"/>
+  <line x1="222" y1="273" x2="262" y2="273" stroke="#1565C0" stroke-width="5" stroke-linecap="round"/>
+
+  <!-- App name -->
+  <text x="256" y="385" text-anchor="middle" font-family="sans-serif" font-weight="700" font-size="48" fill="#E3F2FD">MsgVault</text>
+</svg>
