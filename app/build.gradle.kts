@@ -27,6 +27,10 @@ android {
             storePassword = "umair@12"
             keyAlias = "msgvault"
             keyPassword = "umair@12"
+            enableV1Signing = true
+            enableV2Signing = true
+            enableV3Signing = true
+            enableV4Signing = true
         }
     }
 
