@@ -21,14 +21,27 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            storeFile = rootProject.file("msgvault-key.jks")
+            storePassword = "umair@12"
+            keyAlias = "msgvault"
+            keyPassword = "umair@12"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("release")
+        }
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            signingConfig = signingConfigs.getByName("release")
         }
     }
 
@@ -77,9 +90,6 @@ dependencies {
     implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
     implementation("com.google.firebase:firebase-auth-ktx")
     implementation("com.google.firebase:firebase-firestore-ktx")
-
-    // OkHttp (for admin API calls)
-    implementation("com.squareup.okhttp3:okhttp:4.12.0")
 
     // WorkManager (for scheduled backups)
     implementation("androidx.work:work-runtime-ktx:2.10.0")

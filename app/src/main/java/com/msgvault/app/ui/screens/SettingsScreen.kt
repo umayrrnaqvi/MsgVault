@@ -15,9 +15,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.DataObject
 import androidx.compose.material.icons.outlined.Description
-import androidx.compose.material.icons.outlined.AdminPanelSettings
-import androidx.compose.material.icons.outlined.Logout
-import androidx.compose.material.icons.outlined.Storage
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -26,6 +24,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,6 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -42,19 +42,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.msgvault.app.data.export.ExportFormat
 import com.msgvault.app.ui.viewmodel.AuthViewModel
 import com.msgvault.app.ui.viewmodel.SettingsViewModel
 
-private const val ADMIN_EMAIL = "umairnaqvi902@gmail.com"
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     onBackClick: () -> Unit,
-    onSignOut: () -> Unit = {},
     onAdminClick: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
     authViewModel: AuthViewModel = hiltViewModel()
@@ -62,13 +60,87 @@ fun SettingsScreen(
     val uiState by viewModel.uiState.collectAsState()
     val authState by authViewModel.uiState.collectAsState()
     val context = LocalContext.current
-    val isAdmin = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.email == ADMIN_EMAIL
+    var tapCount by remember { mutableIntStateOf(0) }
+    var showAdminLogin by remember { mutableStateOf(false) }
+    var adminEmail by remember { mutableStateOf("") }
+    var adminPassword by remember { mutableStateOf("") }
 
     LaunchedEffect(uiState.exportUri) {
         if (uiState.exportUri != null) {
             viewModel.createShareIntent(context)
             viewModel.clearExport()
         }
+    }
+
+    LaunchedEffect(authState.isAdminLoggedIn) {
+        if (authState.isAdminLoggedIn) {
+            showAdminLogin = false
+            adminEmail = ""
+            adminPassword = ""
+            onAdminClick()
+        }
+    }
+
+    if (showAdminLogin) {
+        AlertDialog(
+            onDismissRequest = {
+                showAdminLogin = false
+                adminEmail = ""
+                adminPassword = ""
+                authViewModel.clearError()
+            },
+            title = { Text("Admin Login") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = adminEmail,
+                        onValueChange = { adminEmail = it },
+                        label = { Text("Email") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = adminPassword,
+                        onValueChange = { adminPassword = it },
+                        label = { Text("Password") },
+                        singleLine = true,
+                        visualTransformation = PasswordVisualTransformation(),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                    if (authState.error != null) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = authState.error!!,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    if (authState.isLoading) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = { authViewModel.signInAdmin(adminEmail, adminPassword) },
+                    enabled = !authState.isLoading
+                ) {
+                    Text("Login")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showAdminLogin = false
+                    adminEmail = ""
+                    adminPassword = ""
+                    authViewModel.clearError()
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -145,36 +217,22 @@ fun SettingsScreen(
 
             HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
 
-            // Account
-            SectionHeader("Account")
-
-            if (isAdmin) {
-                SettingsRow(
-                    icon = Icons.Outlined.AdminPanelSettings,
-                    title = "Admin Panel",
-                    subtitle = "Manage registered users",
-                    onClick = onAdminClick
-                )
-            }
-
-            SettingsRow(
-                icon = Icons.Outlined.Logout,
-                title = "Sign out",
-                subtitle = "Log out of your account",
-                onClick = {
-                    authViewModel.signOut()
-                    onSignOut()
-                }
-            )
-
             Spacer(modifier = Modifier.height(32.dp))
 
-            // App info
+            // App info - tap version 7 times to reveal admin login
             Text(
                 text = "MsgVault v1.0.0",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(horizontal = 16.dp)
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .clickable {
+                        tapCount++
+                        if (tapCount >= 7) {
+                            tapCount = 0
+                            showAdminLogin = true
+                        }
+                    }
             )
             Text(
                 text = "Your messages stay on your device.",

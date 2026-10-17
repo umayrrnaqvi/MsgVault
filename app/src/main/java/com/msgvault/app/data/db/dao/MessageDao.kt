@@ -39,4 +39,7 @@ interface MessageDao {
 
     @Query("DELETE FROM messages WHERE address = :address")
     suspend fun deleteByAddress(address: String)
+
+    @Query("SELECT * FROM messages WHERE smsId > :sinceId ORDER BY smsId ASC")
+    suspend fun getMessagesSince(sinceId: Long): List<MessageEntity>
 }

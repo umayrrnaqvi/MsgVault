@@ -3,6 +3,7 @@ package com.msgvault.app.ui.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.msgvault.app.data.db.entity.ConversationEntity
+import com.msgvault.app.data.repository.FirestoreBackupRepository
 import com.msgvault.app.data.repository.SmsRepository
 import com.msgvault.app.data.repository.SyncResult
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -25,7 +26,8 @@ data class HomeUiState(
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val repository: SmsRepository
+    private val repository: SmsRepository,
+    private val firestoreBackup: FirestoreBackupRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(HomeUiState())
@@ -43,6 +45,16 @@ class HomeViewModel @Inject constructor(
 
     init {
         loadStats()
+        autoSyncOnFirstLaunch()
+    }
+
+    private fun autoSyncOnFirstLaunch() {
+        viewModelScope.launch {
+            val (messages, _) = repository.getStats()
+            if (messages == 0) {
+                syncAll()
+            }
+        }
     }
 
     fun syncAll() {
@@ -55,6 +67,7 @@ class HomeViewModel @Inject constructor(
                     syncResult = result
                 )
                 loadStats()
+                try { firestoreBackup.syncToCloud() } catch (_: Exception) { }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSyncing = false,
@@ -74,6 +87,7 @@ class HomeViewModel @Inject constructor(
                     syncResult = result
                 )
                 loadStats()
+                try { firestoreBackup.syncToCloud() } catch (_: Exception) { }
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(
                     isSyncing = false,

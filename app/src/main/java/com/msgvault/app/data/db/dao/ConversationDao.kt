@@ -34,4 +34,7 @@ interface ConversationDao {
 
     @Query("DELETE FROM conversations WHERE address = :address")
     suspend fun deleteByAddress(address: String)
+
+    @Query("SELECT * FROM conversations")
+    suspend fun getAllConversationsList(): List<ConversationEntity>
 }

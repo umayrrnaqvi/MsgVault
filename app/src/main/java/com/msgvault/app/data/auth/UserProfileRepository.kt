@@ -11,9 +11,9 @@ import javax.inject.Singleton
 
 data class UserProfile(
     val uid: String = "",
-    val email: String = "",
+    val displayName: String = "",
     val createdAt: Long = 0L,
-    val lastSignIn: Long = 0L,
+    val lastSeen: Long = 0L,
     val disabled: Boolean = false
 )
 
@@ -23,16 +23,17 @@ class UserProfileRepository @Inject constructor() {
     private val db = FirebaseFirestore.getInstance()
     private val usersCollection = db.collection("users")
 
-    suspend fun saveUserProfile(uid: String, email: String) {
+    suspend fun saveUserProfile(uid: String) {
         val existing = usersCollection.document(uid).get().await()
         if (existing.exists()) {
-            usersCollection.document(uid).update("lastSignIn", System.currentTimeMillis()).await()
+            usersCollection.document(uid).update("lastSeen", System.currentTimeMillis()).await()
         } else {
+            val randomName = "User-${uid.take(6).uppercase()}"
             val profile = mapOf(
                 "uid" to uid,
-                "email" to email,
+                "displayName" to randomName,
                 "createdAt" to System.currentTimeMillis(),
-                "lastSignIn" to System.currentTimeMillis(),
+                "lastSeen" to System.currentTimeMillis(),
                 "disabled" to false
             )
             usersCollection.document(uid).set(profile).await()
@@ -50,9 +51,9 @@ class UserProfileRepository @Inject constructor() {
                 val users = snapshot?.documents?.mapNotNull { doc ->
                     UserProfile(
                         uid = doc.getString("uid") ?: "",
-                        email = doc.getString("email") ?: "",
+                        displayName = doc.getString("displayName") ?: "Unknown",
                         createdAt = doc.getLong("createdAt") ?: 0L,
-                        lastSignIn = doc.getLong("lastSignIn") ?: 0L,
+                        lastSeen = doc.getLong("lastSeen") ?: 0L,
                         disabled = doc.getBoolean("disabled") ?: false
                     )
                 } ?: emptyList()

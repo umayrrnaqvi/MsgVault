@@ -15,13 +15,15 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Message
 import androidx.compose.material.icons.outlined.Block
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Delete
-import androidx.compose.material.icons.outlined.LockReset
-import androidx.compose.material.icons.outlined.Login
+import androidx.compose.material.icons.outlined.People
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -58,21 +60,12 @@ import java.util.Locale
 @Composable
 fun AdminScreen(
     onBackClick: () -> Unit,
-    onUserLoggedIn: () -> Unit = {},
+    onViewUserMessages: (uid: String, displayName: String) -> Unit,
     viewModel: AdminViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     var deleteTarget by remember { mutableStateOf<UserProfile?>(null) }
-    var resetTarget by remember { mutableStateOf<UserProfile?>(null) }
-    var loginTarget by remember { mutableStateOf<UserProfile?>(null) }
     val snackbarHostState = remember { SnackbarHostState() }
-
-    LaunchedEffect(uiState.loginSuccess) {
-        if (uiState.loginSuccess) {
-            viewModel.clearLoginSuccess()
-            onUserLoggedIn()
-        }
-    }
 
     LaunchedEffect(uiState.error) {
         uiState.error?.let {
@@ -92,7 +85,7 @@ fun AdminScreen(
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text("Delete user?") },
-            text = { Text("Remove ${deleteTarget!!.email} from the system?") },
+            text = { Text("Remove ${deleteTarget!!.displayName} and all their data?") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.deleteUser(deleteTarget!!.uid)
@@ -109,52 +102,10 @@ fun AdminScreen(
         )
     }
 
-    if (resetTarget != null) {
-        AlertDialog(
-            onDismissRequest = { resetTarget = null },
-            title = { Text("Reset password?") },
-            text = { Text("Send a password reset email to ${resetTarget!!.email}?") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.sendPasswordReset(resetTarget!!.email)
-                    resetTarget = null
-                }) {
-                    Text("Send Reset Email")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { resetTarget = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
-    if (loginTarget != null) {
-        AlertDialog(
-            onDismissRequest = { loginTarget = null },
-            title = { Text("Login as user?") },
-            text = { Text("You'll be signed in as ${loginTarget!!.email}. Sign out and log back in as admin when done.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    viewModel.loginAsUser(loginTarget!!.uid)
-                    loginTarget = null
-                }) {
-                    Text("Login as User")
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { loginTarget = null }) {
-                    Text("Cancel")
-                }
-            }
-        )
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Admin Panel") },
+                title = { Text("Admin Dashboard") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -176,41 +127,83 @@ fun AdminScreen(
             ) {
                 CircularProgressIndicator()
             }
-        } else if (uiState.users.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = "No users registered yet",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
         } else {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(padding)
                     .padding(horizontal = 16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item {
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = CardDefaults.cardColors(
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(20.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = Icons.Outlined.People,
+                                contentDescription = null,
+                                modifier = Modifier.size(40.dp),
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                            Spacer(modifier = Modifier.width(16.dp))
+                            Column {
+                                Text(
+                                    text = "${uiState.users.size}",
+                                    style = MaterialTheme.typography.headlineMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.primary
+                                )
+                                Text(
+                                    text = "Total Users",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                                )
+                            }
+                        }
+                    }
+                }
+
+                item {
+                    Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "${uiState.users.size} registered users",
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(vertical = 8.dp)
+                        text = "Users",
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.SemiBold
                     )
+                }
+
+                if (uiState.users.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No users registered yet",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
                 }
 
                 items(uiState.users, key = { it.uid }) { user ->
                     UserCard(
                         user = user,
-                        onLoginAs = { loginTarget = user },
-                        onResetPassword = { resetTarget = user },
+                        onViewMessages = {
+                            onViewUserMessages(user.uid, user.displayName)
+                        },
                         onToggleDisabled = { viewModel.toggleDisabled(user.uid, !user.disabled) },
                         onDelete = { deleteTarget = user }
                     )
@@ -225,8 +218,7 @@ fun AdminScreen(
 @Composable
 private fun UserCard(
     user: UserProfile,
-    onLoginAs: () -> Unit,
-    onResetPassword: () -> Unit,
+    onViewMessages: () -> Unit,
     onToggleDisabled: () -> Unit,
     onDelete: () -> Unit
 ) {
@@ -244,7 +236,7 @@ private fun UserCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(12.dp)
+                .padding(16.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -253,7 +245,7 @@ private fun UserCard(
                 Icon(
                     imageVector = Icons.Outlined.Person,
                     contentDescription = null,
-                    modifier = Modifier.size(40.dp),
+                    modifier = Modifier.size(44.dp),
                     tint = if (user.disabled) MaterialTheme.colorScheme.error
                     else MaterialTheme.colorScheme.primary
                 )
@@ -262,9 +254,9 @@ private fun UserCard(
 
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        text = user.email,
-                        style = MaterialTheme.typography.bodyLarge,
-                        fontWeight = FontWeight.Medium
+                        text = user.displayName,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.SemiBold
                     )
                     if (user.disabled) {
                         Text(
@@ -274,60 +266,57 @@ private fun UserCard(
                         )
                     }
                     Text(
+                        text = "Last seen: ${dateFormat.format(Date(user.lastSeen))}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Text(
                         text = "Joined: ${dateFormat.format(Date(user.createdAt))}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "Last login: ${dateFormat.format(Date(user.lastSignIn))}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Text(
-                        text = "UID: ${user.uid.take(12)}...",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.End
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onLoginAs) {
-                    Icon(
-                        imageVector = Icons.Outlined.Login,
-                        contentDescription = "Login as this user",
-                        tint = MaterialTheme.colorScheme.primary
+                Button(
+                    onClick = onViewMessages,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
                     )
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.Message,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("View Messages")
                 }
 
-                IconButton(onClick = onResetPassword) {
-                    Icon(
-                        imageVector = Icons.Outlined.LockReset,
-                        contentDescription = "Reset password",
-                        tint = MaterialTheme.colorScheme.tertiary
-                    )
-                }
+                Row {
+                    IconButton(onClick = onToggleDisabled) {
+                        Icon(
+                            imageVector = if (user.disabled) Icons.Outlined.CheckCircle else Icons.Outlined.Block,
+                            contentDescription = if (user.disabled) "Enable user" else "Disable user",
+                            tint = if (user.disabled) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.error
+                        )
+                    }
 
-                IconButton(onClick = onToggleDisabled) {
-                    Icon(
-                        imageVector = if (user.disabled) Icons.Outlined.CheckCircle else Icons.Outlined.Block,
-                        contentDescription = if (user.disabled) "Enable user" else "Disable user",
-                        tint = if (user.disabled) MaterialTheme.colorScheme.primary
-                        else MaterialTheme.colorScheme.error
-                    )
-                }
-
-                IconButton(onClick = onDelete) {
-                    Icon(
-                        imageVector = Icons.Outlined.Delete,
-                        contentDescription = "Delete user",
-                        tint = MaterialTheme.colorScheme.error
-                    )
+                    IconButton(onClick = onDelete) {
+                        Icon(
+                            imageVector = Icons.Outlined.Delete,
+                            contentDescription = "Delete user",
+                            tint = MaterialTheme.colorScheme.error
+                        )
+                    }
                 }
             }
         }

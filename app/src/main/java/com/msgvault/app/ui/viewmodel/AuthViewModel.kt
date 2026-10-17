@@ -15,7 +15,7 @@ data class AuthUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val isAuthenticated: Boolean = false,
-    val resetEmailSent: Boolean = false
+    val isAdminLoggedIn: Boolean = false
 )
 
 @HiltViewModel
@@ -28,23 +28,10 @@ class AuthViewModel @Inject constructor(
     ))
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
 
-    fun signUp(email: String, password: String, confirmPassword: String) {
-        if (email.isBlank() || password.isBlank()) {
-            _uiState.value = _uiState.value.copy(error = "Email and password are required")
-            return
-        }
-        if (password.length < 6) {
-            _uiState.value = _uiState.value.copy(error = "Password must be at least 6 characters")
-            return
-        }
-        if (password != confirmPassword) {
-            _uiState.value = _uiState.value.copy(error = "Passwords do not match")
-            return
-        }
-
+    fun signInAnonymously() {
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = authRepository.signUp(email, password)) {
+            when (val result = authRepository.signInAnonymously()) {
                 is AuthResult.Success -> {
                     _uiState.value = _uiState.value.copy(isLoading = false, isAuthenticated = true)
                 }
@@ -55,7 +42,7 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun signIn(email: String, password: String) {
+    fun signInAdmin(email: String, password: String) {
         if (email.isBlank() || password.isBlank()) {
             _uiState.value = _uiState.value.copy(error = "Email and password are required")
             return
@@ -63,9 +50,12 @@ class AuthViewModel @Inject constructor(
 
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = authRepository.signIn(email, password)) {
+            when (val result = authRepository.signInAdmin(email, password)) {
                 is AuthResult.Success -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, isAuthenticated = true)
+                    _uiState.value = _uiState.value.copy(
+                        isLoading = false,
+                        isAdminLoggedIn = true
+                    )
                 }
                 is AuthResult.Error -> {
                     _uiState.value = _uiState.value.copy(isLoading = false, error = result.message)
@@ -74,28 +64,9 @@ class AuthViewModel @Inject constructor(
         }
     }
 
-    fun resetPassword(email: String) {
-        if (email.isBlank()) {
-            _uiState.value = _uiState.value.copy(error = "Enter your email address")
-            return
-        }
-
-        viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (authRepository.resetPassword(email)) {
-                is AuthResult.Success -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, resetEmailSent = true)
-                }
-                is AuthResult.Error -> {
-                    _uiState.value = _uiState.value.copy(isLoading = false, error = "Failed to send reset email")
-                }
-            }
-        }
-    }
-
-    fun signOut() {
-        authRepository.signOut()
-        _uiState.value = AuthUiState(isAuthenticated = false)
+    fun signOutAdmin() {
+        authRepository.signOutAdmin()
+        _uiState.value = _uiState.value.copy(isAdminLoggedIn = false, isAuthenticated = false)
     }
 
     fun clearError() {

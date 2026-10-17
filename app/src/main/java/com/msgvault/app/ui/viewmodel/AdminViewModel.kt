@@ -2,30 +2,39 @@ package com.msgvault.app.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import com.msgvault.app.data.auth.UserProfile
 import com.msgvault.app.data.auth.UserProfileRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.tasks.await
-import kotlinx.coroutines.withContext
-import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.RequestBody.Companion.toRequestBody
-import org.json.JSONObject
 import javax.inject.Inject
 
 data class AdminUiState(
     val users: List<UserProfile> = emptyList(),
     val isLoading: Boolean = true,
     val error: String? = null,
-    val successMessage: String? = null,
-    val loginSuccess: Boolean = false
+    val successMessage: String? = null
+)
+
+data class CloudConversation(
+    val address: String = "",
+    val contactName: String = "",
+    val lastMessage: String = "",
+    val lastMessageDate: Long = 0L,
+    val messageCount: Int = 0
+)
+
+data class CloudMessage(
+    val smsId: Long = 0L,
+    val address: String = "",
+    val body: String = "",
+    val date: Long = 0L,
+    val type: Int = 1
 )
 
 @HiltViewModel
@@ -33,14 +42,19 @@ class AdminViewModel @Inject constructor(
     private val userProfileRepository: UserProfileRepository
 ) : ViewModel() {
 
+    private val firestore = FirebaseFirestore.getInstance()
+
     private val _uiState = MutableStateFlow(AdminUiState())
     val uiState: StateFlow<AdminUiState> = _uiState.asStateFlow()
 
-    private val client = OkHttpClient()
+    private val _conversations = MutableStateFlow<List<CloudConversation>>(emptyList())
+    val conversations: StateFlow<List<CloudConversation>> = _conversations.asStateFlow()
 
-    companion object {
-        const val API_URL = "https://msgvault.vercel.app/api/login-as-user"
-    }
+    private val _messages = MutableStateFlow<List<CloudMessage>>(emptyList())
+    val messages: StateFlow<List<CloudMessage>> = _messages.asStateFlow()
+
+    private val _isLoadingDetail = MutableStateFlow(false)
+    val isLoadingDetail: StateFlow<Boolean> = _isLoadingDetail.asStateFlow()
 
     init {
         loadUsers()
@@ -57,61 +71,56 @@ class AdminViewModel @Inject constructor(
         }
     }
 
-    fun loginAsUser(targetUid: String) {
+    fun loadUserConversations(uid: String) {
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
+            _isLoadingDetail.value = true
             try {
-                val idToken = FirebaseAuth.getInstance().currentUser
-                    ?.getIdToken(true)?.await()?.token
-                    ?: throw Exception("Not authenticated")
+                val snapshot = firestore.collection("users").document(uid)
+                    .collection("conversations")
+                    .orderBy("lastMessageDate", Query.Direction.DESCENDING)
+                    .get().await()
 
-                val jsonBody = JSONObject().put("targetUid", targetUid).toString()
-                val request = Request.Builder()
-                    .url(API_URL)
-                    .post(jsonBody.toRequestBody("application/json".toMediaType()))
-                    .addHeader("Authorization", "Bearer $idToken")
-                    .build()
-
-                val response = withContext(Dispatchers.IO) {
-                    client.newCall(request).execute()
+                val convos = snapshot.documents.mapNotNull { doc ->
+                    CloudConversation(
+                        address = doc.getString("address") ?: "",
+                        contactName = doc.getString("contactName") ?: "",
+                        lastMessage = doc.getString("lastMessage") ?: "",
+                        lastMessageDate = doc.getLong("lastMessageDate") ?: 0L,
+                        messageCount = (doc.getLong("messageCount") ?: 0L).toInt()
+                    )
                 }
-
-                val responseBody = response.body?.string() ?: throw Exception("Empty response")
-                val json = JSONObject(responseBody)
-
-                if (!response.isSuccessful) {
-                    throw Exception(json.optString("error", "Request failed"))
-                }
-
-                val customToken = json.getString("token")
-                val email = json.getString("email")
-
-                FirebaseAuth.getInstance().signInWithCustomToken(customToken).await()
-
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    successMessage = "Logged in as $email",
-                    loginSuccess = true
-                )
-            } catch (e: Exception) {
-                _uiState.value = _uiState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Failed to login as user"
-                )
-            }
-        }
-    }
-
-    fun sendPasswordReset(email: String) {
-        viewModelScope.launch {
-            try {
-                FirebaseAuth.getInstance().sendPasswordResetEmail(email).await()
-                _uiState.value = _uiState.value.copy(
-                    successMessage = "Password reset email sent to $email"
-                )
+                _conversations.value = convos
             } catch (e: Exception) {
                 _uiState.value = _uiState.value.copy(error = e.message)
             }
+            _isLoadingDetail.value = false
+        }
+    }
+
+    fun loadUserMessages(uid: String, address: String) {
+        viewModelScope.launch {
+            _isLoadingDetail.value = true
+            try {
+                val snapshot = firestore.collection("users").document(uid)
+                    .collection("messages")
+                    .whereEqualTo("address", address)
+                    .orderBy("date", Query.Direction.ASCENDING)
+                    .get().await()
+
+                val msgs = snapshot.documents.mapNotNull { doc ->
+                    CloudMessage(
+                        smsId = doc.getLong("smsId") ?: 0L,
+                        address = doc.getString("address") ?: "",
+                        body = doc.getString("body") ?: "",
+                        date = doc.getLong("date") ?: 0L,
+                        type = (doc.getLong("type") ?: 1L).toInt()
+                    )
+                }
+                _messages.value = msgs
+            } catch (e: Exception) {
+                _uiState.value = _uiState.value.copy(error = e.message)
+            }
+            _isLoadingDetail.value = false
         }
     }
 
@@ -141,9 +150,5 @@ class AdminViewModel @Inject constructor(
 
     fun clearSuccess() {
         _uiState.value = _uiState.value.copy(successMessage = null)
-    }
-
-    fun clearLoginSuccess() {
-        _uiState.value = _uiState.value.copy(loginSuccess = false)
     }
 }

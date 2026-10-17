@@ -11,7 +11,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import androidx.navigation.compose.rememberNavController
-import com.google.firebase.auth.FirebaseAuth
 import com.msgvault.app.ui.navigation.AppNavGraph
 import com.msgvault.app.ui.theme.MsgVaultTheme
 import dagger.hilt.android.AndroidEntryPoint
@@ -27,8 +26,7 @@ class MainActivity : ComponentActivity() {
                     val navController = rememberNavController()
                     AppNavGraph(
                         navController = navController,
-                        hasPermissions = hasRequiredPermissions(),
-                        isLoggedIn = FirebaseAuth.getInstance().currentUser != null
+                        hasPermissions = hasRequiredPermissions()
                     )
                 }
             }
